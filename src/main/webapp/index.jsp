@@ -1,10 +1,29 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ page import="java.lang.management.*" %>
+<%@ page import="com.sun.management.OperatingSystemMXBean" %>
+<%
+    // Get system information
+    OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
+    Runtime runtime = Runtime.getRuntime();
+    
+    double cpuUsage = osBean.getProcessCpuLoad() * 100;
+    if (cpuUsage < 0) cpuUsage = 0; // Handle -1 case
+    
+    long totalMemory = runtime.totalMemory();
+    long freeMemory = runtime.freeMemory();
+    long usedMemory = totalMemory - freeMemory;
+    long maxMemory = runtime.maxMemory();
+    
+    double memoryUsage = (double) usedMemory / maxMemory * 100;
+    
+    int availableProcessors = runtime.availableProcessors();
+%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Saksham AI Assistant</title>
+    <title>Saksham AI Assistant - System Monitor</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -12,38 +31,118 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 20px;
         }
         
-        .chat-container {
-            width: 90%;
-            max-width: 800px;
-            height: 600px;
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .system-monitor {
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .monitor-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .monitor-icon {
+            font-size: 2em;
+            margin-right: 15px;
+        }
+        
+        .monitor-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .metric-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .metric-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+        
+        .metric-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .cpu-usage { color: #e74c3c; }
+        .cpu-fill { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+        
+        .memory-usage { color: #3498db; }
+        .memory-fill { background: linear-gradient(90deg, #3498db, #2980b9); }
+        
+        .disk-usage { color: #f39c12; }
+        .disk-fill { background: linear-gradient(90deg, #f39c12, #e67e22); }
+        
+        .network-usage { color: #27ae60; }
+        .network-fill { background: linear-gradient(90deg, #27ae60, #229954); }
+        
+        .chat-container {
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            height: 500px;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
         }
         
         .chat-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 20px;
-            text-align: center;
-        }
-        
-        .chat-header h1 {
-            font-size: 1.8em;
-            margin-bottom: 5px;
-        }
-        
-        .chat-header p {
-            opacity: 0.9;
-            font-size: 0.9em;
+            border-radius: 15px 15px 0 0;
         }
         
         .chat-messages {
@@ -59,9 +158,7 @@
             align-items: flex-start;
         }
         
-        .message.user {
-            justify-content: flex-end;
-        }
+        .message.user { justify-content: flex-end; }
         
         .message-content {
             max-width: 70%;
@@ -108,6 +205,7 @@
             padding: 20px;
             background: white;
             border-top: 1px solid #e0e0e0;
+            border-radius: 0 0 15px 15px;
         }
         
         .input-container {
@@ -122,11 +220,6 @@
             border-radius: 25px;
             font-size: 0.95em;
             outline: none;
-            transition: border-color 0.3s ease;
-        }
-        
-        .chat-input input:focus {
-            border-color: #667eea;
         }
         
         .send-btn {
@@ -136,79 +229,125 @@
             border: none;
             border-radius: 25px;
             cursor: pointer;
-            font-size: 0.95em;
-            transition: background 0.3s ease;
         }
         
-        .send-btn:hover {
-            background: #5a6fd8;
-        }
-        
-        .typing-indicator {
-            display: none;
-            padding: 10px 18px;
-            background: #e3f2fd;
-            border-radius: 18px;
-            border-bottom-left-radius: 5px;
-            color: #1565c0;
-            font-style: italic;
-        }
-        
-        .quick-actions {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-        
-        .quick-btn {
-            padding: 8px 15px;
-            background: #f0f0f0;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 0.85em;
-            transition: all 0.3s ease;
-        }
-        
-        .quick-btn:hover {
+        .refresh-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
             background: #667eea;
             color: white;
-            border-color: #667eea;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 0.8em;
         }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-good { background: #27ae60; }
+        .status-warning { background: #f39c12; }
+        .status-critical { background: #e74c3c; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .pulse { animation: pulse 2s infinite; }
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
+    <div class="dashboard">
+        <div class="header">
             <h1>🤖 Saksham AI Assistant</h1>
-            <p>Your intelligent companion for learning and problem-solving</p>
+            <p>AI-Powered System Monitor & Assistant</p>
         </div>
         
-        <div class="chat-messages" id="chatMessages">
-            <div class="message ai">
-                <div class="message-avatar">🤖</div>
-                <div class="message-content">
-                    Hello! I'm Saksham, your AI assistant. I'm here to help you with questions, learning, and problem-solving. How can I assist you today?
+        <button class="refresh-btn" onclick="location.reload()">🔄 Refresh</button>
+        
+        <div class="grid">
+            <!-- CPU Monitor -->
+            <div class="system-monitor">
+                <div class="monitor-header">
+                    <div class="monitor-icon">🖥️</div>
+                    <div class="monitor-title">CPU Performance</div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-label">
+                        <span class="status-indicator <%= cpuUsage > 80 ? "status-critical" : cpuUsage > 60 ? "status-warning" : "status-good" %>"></span>
+                        CPU Usage
+                    </div>
+                    <div class="metric-value cpu-usage"><%= String.format("%.1f", cpuUsage) %>%</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill cpu-fill" style="width: <%= cpuUsage %>%"></div>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-label">Available Processors</div>
+                    <div class="metric-value" style="color: #667eea;"><%= availableProcessors %> Cores</div>
                 </div>
             </div>
             
-            <div class="quick-actions">
-                <div class="quick-btn" onclick="sendQuickMessage('What can you help me with?')">What can you do?</div>
-                <div class="quick-btn" onclick="sendQuickMessage('Tell me about AI')">About AI</div>
-                <div class="quick-btn" onclick="sendQuickMessage('Help with coding')">Coding Help</div>
-                <div class="quick-btn" onclick="sendQuickMessage('Explain DevOps')">DevOps</div>
-            </div>
-            
-            <div class="typing-indicator" id="typingIndicator">
-                Saksham is thinking...
+            <!-- Memory Monitor -->
+            <div class="system-monitor">
+                <div class="monitor-header">
+                    <div class="monitor-icon">💾</div>
+                    <div class="monitor-title">Memory Usage</div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-label">
+                        <span class="status-indicator <%= memoryUsage > 85 ? "status-critical" : memoryUsage > 70 ? "status-warning" : "status-good" %>"></span>
+                        Memory Usage
+                    </div>
+                    <div class="metric-value memory-usage"><%= String.format("%.1f", memoryUsage) %>%</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill memory-fill" style="width: <%= memoryUsage %>%"></div>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-label">Memory Details</div>
+                    <div style="font-size: 0.9em; color: #6c757d;">
+                        Used: <%= String.format("%.1f", usedMemory / (1024.0 * 1024.0)) %> MB<br>
+                        Max: <%= String.format("%.1f", maxMemory / (1024.0 * 1024.0)) %> MB
+                    </div>
+                </div>
             </div>
         </div>
         
-        <div class="chat-input">
-            <div class="input-container">
-                <input type="text" id="messageInput" placeholder="Type your message here..." onkeypress="handleKeyPress(event)">
-                <button class="send-btn" onclick="sendMessage()">Send</button>
+        <!-- AI Chat Interface -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <h2>💬 Chat with Saksham AI</h2>
+                <p>Ask about system performance, get help, or just chat!</p>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="message ai">
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-content">
+                        Hello! I'm monitoring your system performance. Current CPU usage is <%= String.format("%.1f", cpuUsage) %>% and memory usage is <%= String.format("%.1f", memoryUsage) %>%. How can I help you today?
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input">
+                <div class="input-container">
+                    <input type="text" id="messageInput" placeholder="Ask about system performance or anything else..." onkeypress="handleKeyPress(event)">
+                    <button class="send-btn" onclick="sendMessage()">Send</button>
+                </div>
             </div>
         </div>
     </div>
@@ -216,17 +355,13 @@
     <script>
         const chatMessages = document.getElementById('chatMessages');
         const messageInput = document.getElementById('messageInput');
-        const typingIndicator = document.getElementById('typingIndicator');
         
-        // Simple AI responses
-        const aiResponses = {
-            'what can you help me with?': 'I can help you with:\n• Programming and coding questions\n• DevOps and CI/CD concepts\n• Learning new technologies\n• Problem-solving and debugging\n• General knowledge questions\n\nJust ask me anything!',
-            'tell me about ai': 'Artificial Intelligence (AI) is the simulation of human intelligence in machines. It includes:\n• Machine Learning\n• Natural Language Processing\n• Computer Vision\n• Robotics\n\nAI is transforming industries and making our lives easier!',
-            'help with coding': 'I can help you with:\n• Java, JavaScript, Python, and more\n• Debugging code issues\n• Best practices and design patterns\n• Code reviews and optimization\n• Learning new frameworks\n\nWhat programming challenge are you facing?',
-            'explain devops': 'DevOps combines Development and Operations:\n• Continuous Integration (CI)\n• Continuous Deployment (CD)\n• Infrastructure as Code\n• Monitoring and Logging\n• Collaboration between teams\n\nIt helps deliver software faster and more reliably!',
-            'hello': 'Hello! Great to meet you! How can I help you today?',
-            'hi': 'Hi there! I\'m excited to help you. What would you like to know?',
-            'thanks': 'You\'re welcome! I\'m always here to help. Is there anything else you\'d like to know?'
+        // System-aware AI responses
+        const systemResponses = {
+            'cpu': 'Current CPU usage is <%= String.format("%.1f", cpuUsage) %>%. <%= cpuUsage > 80 ? "⚠️ High CPU usage detected! Consider closing unnecessary applications." : cpuUsage > 60 ? "⚡ Moderate CPU usage. System is working well." : "✅ CPU usage is optimal!" %>',
+            'memory': 'Memory usage is <%= String.format("%.1f", memoryUsage) %>%. <%= memoryUsage > 85 ? "🔴 High memory usage! Consider restarting some applications." : memoryUsage > 70 ? "🟡 Moderate memory usage." : "🟢 Memory usage is healthy!" %>',
+            'performance': 'System Performance Report:\n• CPU: <%= String.format("%.1f", cpuUsage) %>% (<%= availableProcessors %> cores)\n• Memory: <%= String.format("%.1f", memoryUsage) %>%\n• Status: <%= (cpuUsage < 60 && memoryUsage < 70) ? "🟢 Excellent" : (cpuUsage < 80 && memoryUsage < 85) ? "🟡 Good" : "🔴 Needs Attention" %>',
+            'help': 'I can help you with:\n• 📊 System monitoring and performance\n• 💻 CPU and memory optimization\n• 🔧 Troubleshooting performance issues\n• 📈 Understanding system metrics\n• 🤖 General AI assistance\n\nWhat would you like to know?'
         };
         
         function sendMessage() {
@@ -236,24 +371,8 @@
             addMessage(message, 'user');
             messageInput.value = '';
             
-            // Show typing indicator
-            showTyping();
-            
-            // Simulate AI response delay
             setTimeout(() => {
-                hideTyping();
-                const response = getAIResponse(message);
-                addMessage(response, 'ai');
-            }, 1500);
-        }
-        
-        function sendQuickMessage(message) {
-            addMessage(message, 'user');
-            showTyping();
-            
-            setTimeout(() => {
-                hideTyping();
-                const response = getAIResponse(message);
+                const response = getSystemAwareResponse(message);
                 addMessage(response, 'ai');
             }, 1000);
         }
@@ -268,7 +387,7 @@
             
             const messageContent = document.createElement('div');
             messageContent.className = 'message-content';
-            messageContent.textContent = content;
+            messageContent.innerHTML = content.replace(/\n/g, '<br>');
             
             if (sender === 'ai') {
                 messageDiv.appendChild(avatar);
@@ -278,44 +397,26 @@
                 messageDiv.appendChild(avatar);
             }
             
-            chatMessages.insertBefore(messageDiv, typingIndicator);
+            chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
         
-        function getAIResponse(message) {
+        function getSystemAwareResponse(message) {
             const lowerMessage = message.toLowerCase();
             
-            // Check for exact matches first
-            if (aiResponses[lowerMessage]) {
-                return aiResponses[lowerMessage];
-            }
-            
-            // Check for partial matches
-            for (const key in aiResponses) {
-                if (lowerMessage.includes(key.split(' ')[0])) {
-                    return aiResponses[key];
+            for (const key in systemResponses) {
+                if (lowerMessage.includes(key)) {
+                    return systemResponses[key];
                 }
             }
             
-            // Default responses
             const defaultResponses = [
-                "That's an interesting question! While I'm still learning, I'd be happy to help you explore this topic further.",
-                "I understand you're asking about that. Let me think... Could you provide a bit more context?",
-                "Great question! I'm continuously learning and improving. Is there a specific aspect you'd like me to focus on?",
-                "I appreciate your question! While I may not have all the answers, I'm here to help you think through problems.",
-                "That's a thoughtful inquiry! Could you tell me more about what you're trying to achieve?"
+                "I'm here to help! Try asking about 'cpu', 'memory', or 'performance' to get system insights.",
+                "That's interesting! I can also provide real-time system monitoring. What would you like to know?",
+                "Great question! I'm monitoring your system performance in real-time. Need any system insights?"
             ];
             
             return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
-        }
-        
-        function showTyping() {
-            typingIndicator.style.display = 'block';
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-        
-        function hideTyping() {
-            typingIndicator.style.display = 'none';
         }
         
         function handleKeyPress(event) {
@@ -324,7 +425,13 @@
             }
         }
         
-        // Focus on input when page loads
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            const refreshBtn = document.querySelector('.refresh-btn');
+            refreshBtn.classList.add('pulse');
+            setTimeout(() => refreshBtn.classList.remove('pulse'), 2000);
+        }, 30000);
+        
         window.onload = function() {
             messageInput.focus();
         };
