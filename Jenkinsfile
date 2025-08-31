@@ -34,7 +34,7 @@ pipeline {
         sh '''
           WAR_FILE=$(ls target/*.war | head -n1)
           echo "Deploying $WAR_FILE to Tomcat..."
-          docker cp "$WAR_FILE" tomcat-local:/usr/local/tomcat/webapps/myapp.war
+          cp "$WAR_FILE" /shared/webapps/myapp.war
           echo "Deployment complete!"
         '''
       }
