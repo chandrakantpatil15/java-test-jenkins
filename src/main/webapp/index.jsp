@@ -13,7 +13,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>🚀 Welcome to My Java Web Application!</h1>
+        <h1>🚀 Welcome to My Updated Java Web Application!</h1>
+        <p style="color: green; font-weight: bold;">✨ This change was deployed automatically! ✨</p>
         <div class="info">
             <p><strong>Version:</strong> 1.0.0</p>
             <p><strong>Build Time:</strong> <%= new java.util.Date() %></p>
