@@ -1,6 +1,7 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="java.lang.management.*" %>
 <%@ page import="com.sun.management.OperatingSystemMXBean" %>
+<%@ page import="java.io.File" %>
 <%
     // Get system information
     OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
@@ -17,6 +18,13 @@
     double memoryUsage = (double) usedMemory / maxMemory * 100;
     
     int availableProcessors = runtime.availableProcessors();
+    
+    // Get disk usage
+    File root = new File("/");
+    long totalDiskSpace = root.getTotalSpace();
+    long freeDiskSpace = root.getFreeSpace();
+    long usedDiskSpace = totalDiskSpace - freeDiskSpace;
+    double diskUsage = (double) usedDiskSpace / totalDiskSpace * 100;
 %>
 <!DOCTYPE html>
 <html lang="en">
@@ -274,7 +282,7 @@
         
         <button class="refresh-btn" onclick="location.reload()">🔄 Refresh</button>
         
-        <div class="grid">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
             <!-- CPU Monitor -->
             <div class="system-monitor">
                 <div class="monitor-header">
@@ -325,6 +333,33 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Disk Monitor -->
+            <div class="system-monitor">
+                <div class="monitor-header">
+                    <div class="monitor-icon">💽</div>
+                    <div class="monitor-title">Disk Usage</div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-label">
+                        <span class="status-indicator <%= diskUsage > 90 ? "status-critical" : diskUsage > 75 ? "status-warning" : "status-good" %>"></span>
+                        Disk Usage
+                    </div>
+                    <div class="metric-value disk-usage"><%= String.format("%.1f", diskUsage) %>%</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill disk-fill" style="width: <%= diskUsage %>%"></div>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-label">Disk Details</div>
+                    <div style="font-size: 0.9em; color: #6c757d;">
+                        Used: <%= String.format("%.1f", usedDiskSpace / (1024.0 * 1024.0 * 1024.0)) %> GB<br>
+                        Total: <%= String.format("%.1f", totalDiskSpace / (1024.0 * 1024.0 * 1024.0)) %> GB
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- AI Chat Interface -->
@@ -338,7 +373,11 @@
                 <div class="message ai">
                     <div class="message-avatar">🤖</div>
                     <div class="message-content">
-                        Hello! I'm monitoring your system performance. Current CPU usage is <%= String.format("%.1f", cpuUsage) %>% and memory usage is <%= String.format("%.1f", memoryUsage) %>%. How can I help you today?
+                        Hello! I'm monitoring your system performance. Current status:<br>
+                        • CPU: <%= String.format("%.1f", cpuUsage) %>%<br>
+                        • Memory: <%= String.format("%.1f", memoryUsage) %>%<br>
+                        • Disk: <%= String.format("%.1f", diskUsage) %>%<br><br>
+                        How can I help you today?
                     </div>
                 </div>
             </div>
@@ -356,12 +395,14 @@
         const chatMessages = document.getElementById('chatMessages');
         const messageInput = document.getElementById('messageInput');
         
-        // System-aware AI responses
+        // System-aware AI responses with current values
         const systemResponses = {
-            'cpu': 'Current CPU usage is <%= String.format("%.1f", cpuUsage) %>%. <%= cpuUsage > 80 ? "⚠️ High CPU usage detected! Consider closing unnecessary applications." : cpuUsage > 60 ? "⚡ Moderate CPU usage. System is working well." : "✅ CPU usage is optimal!" %>',
-            'memory': 'Memory usage is <%= String.format("%.1f", memoryUsage) %>%. <%= memoryUsage > 85 ? "🔴 High memory usage! Consider restarting some applications." : memoryUsage > 70 ? "🟡 Moderate memory usage." : "🟢 Memory usage is healthy!" %>',
-            'performance': 'System Performance Report:\n• CPU: <%= String.format("%.1f", cpuUsage) %>% (<%= availableProcessors %> cores)\n• Memory: <%= String.format("%.1f", memoryUsage) %>%\n• Status: <%= (cpuUsage < 60 && memoryUsage < 70) ? "🟢 Excellent" : (cpuUsage < 80 && memoryUsage < 85) ? "🟡 Good" : "🔴 Needs Attention" %>',
-            'help': 'I can help you with:\n• 📊 System monitoring and performance\n• 💻 CPU and memory optimization\n• 🔧 Troubleshooting performance issues\n• 📈 Understanding system metrics\n• 🤖 General AI assistance\n\nWhat would you like to know?'
+            'cpu': `Current CPU usage is <%= String.format("%.1f", cpuUsage) %>%. <%= cpuUsage > 80 ? "⚠️ High CPU usage detected! Consider closing unnecessary applications." : cpuUsage > 60 ? "⚡ Moderate CPU usage. System is working well." : "✅ CPU usage is optimal!" %>`,
+            'memory': `Memory usage is <%= String.format("%.1f", memoryUsage) %>%. <%= memoryUsage > 85 ? "🔴 High memory usage! Consider restarting some applications." : memoryUsage > 70 ? "🟡 Moderate memory usage." : "🟢 Memory usage is healthy!" %>`,
+            'disk': `Disk usage is <%= String.format("%.1f", diskUsage) %>%. <%= diskUsage > 90 ? "🔴 Critical! Disk almost full. Clean up files immediately." : diskUsage > 75 ? "🟡 Warning: Disk getting full. Consider cleanup." : "🟢 Disk usage is healthy!" %>\nUsed: <%= String.format("%.1f", usedDiskSpace / (1024.0 * 1024.0 * 1024.0)) %> GB / <%= String.format("%.1f", totalDiskSpace / (1024.0 * 1024.0 * 1024.0)) %> GB`,
+            'performance': `System Performance Report:\n• CPU: <%= String.format("%.1f", cpuUsage) %>% (<%= availableProcessors %> cores)\n• Memory: <%= String.format("%.1f", memoryUsage) %>%\n• Disk: <%= String.format("%.1f", diskUsage) %>%\n• Status: <%= (cpuUsage < 60 && memoryUsage < 70 && diskUsage < 75) ? "🟢 Excellent" : (cpuUsage < 80 && memoryUsage < 85 && diskUsage < 90) ? "🟡 Good" : "🔴 Needs Attention" %>`,
+            'storage': `Disk usage is <%= String.format("%.1f", diskUsage) %>%. <%= diskUsage > 90 ? "🔴 Critical! Disk almost full. Clean up files immediately." : diskUsage > 75 ? "🟡 Warning: Disk getting full. Consider cleanup." : "🟢 Disk usage is healthy!" %>\nUsed: <%= String.format("%.1f", usedDiskSpace / (1024.0 * 1024.0 * 1024.0)) %> GB / <%= String.format("%.1f", totalDiskSpace / (1024.0 * 1024.0 * 1024.0)) %> GB`,
+            'help': `I can help you with:\n• 📊 System monitoring (CPU, Memory, Disk)\n• 💻 Performance optimization\n• 🔧 Troubleshooting issues\n• 📈 Understanding metrics\n• 🤖 General AI assistance\n\nTry asking: "cpu", "memory", "disk", or "performance"`
         };
         
         function sendMessage() {
@@ -411,9 +452,9 @@
             }
             
             const defaultResponses = [
-                "I'm here to help! Try asking about 'cpu', 'memory', or 'performance' to get system insights.",
-                "That's interesting! I can also provide real-time system monitoring. What would you like to know?",
-                "Great question! I'm monitoring your system performance in real-time. Need any system insights?"
+                "I'm here to help! Try asking about 'cpu', 'memory', 'disk', or 'performance' to get system insights.",
+                "That's interesting! I can provide real-time monitoring. Ask about CPU, memory, or disk usage!",
+                "Great question! I'm monitoring your system in real-time. Try 'performance' for a full report!"
             ];
             
             return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
