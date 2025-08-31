@@ -7,6 +7,7 @@ pipeline {
 
   environment {
     TOMCAT_HOST = 'tomcat:8080'   // Docker Compose service name + port
+    MAVEN_OPTS = '-Xmx256m -Xms128m'
   }
 
   stages {
