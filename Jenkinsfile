@@ -6,8 +6,8 @@ pipeline {
   }
 
   environment {
-    TOMCAT_HOST = 'tomcat:8080'   // Docker Compose service name + port
-    MAVEN_OPTS = '-Xmx256m -Xms128m'
+    TOMCAT_HOST = 'tomcat-local:8080'   // Docker Compose service name + port
+    MAVEN_OPTS = '-Xmx512m -Xms256m'
   }
 
   stages {
@@ -19,7 +19,7 @@ pipeline {
 
     stage('Build') {
       steps {
-        sh 'mvn -B -DskipTests clean package -T 1C'
+        sh 'mvn -B -DskipTests clean package -T 1C -Dmaven.repo.local=/var/jenkins_home/.m2/repository'
       }
     }
 
@@ -31,17 +31,12 @@ pipeline {
 
     stage('Deploy to Tomcat') {
       steps {
-        withCredentials([usernamePassword(credentialsId: 'tomcat-creds', usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
-          sh '''
-            WAR_FILE=$(ls target/*.war | head -n1)
-            APP_PATH=/myapp
-            # Undeploy if exists to avoid 409 conflicts
-            curl -sS -u "$TOMCAT_USER:$TOMCAT_PASS" "http://$TOMCAT_HOST/manager/text/undeploy?path=$APP_PATH" || true
-            # Deploy/Update
-            curl -sS -u "$TOMCAT_USER:$TOMCAT_PASS" --upload-file "$WAR_FILE" \
-              "http://$TOMCAT_HOST/manager/text/deploy?path=$APP_PATH&update=true"
-          '''
-        }
+        sh '''
+          WAR_FILE=$(ls target/*.war | head -n1)
+          echo "Deploying $WAR_FILE to Tomcat..."
+          docker cp "$WAR_FILE" tomcat-local:/usr/local/tomcat/webapps/myapp.war
+          echo "Deployment complete!"
+        '''
       }
     }
   }

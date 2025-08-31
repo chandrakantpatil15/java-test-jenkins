@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins-local
+    restart: always
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JAVA_OPTS=-Xmx1g -Xms512m
+    networks:
+      - ci-cd-network
+
+  tomcat:
+    image: tomcat:9.0-jdk17-temurin
+    container_name: tomcat-local
+    restart: always
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./webapps:/usr/local/tomcat/webapps
+      - ./tomcat-users.xml:/usr/local/tomcat/conf/tomcat-users.xml
+      - ./context.xml:/usr/local/tomcat/webapps/manager/META-INF/context.xml
+    environment:
+      - CATALINA_OPTS=-Xmx512m -Xms256m
+    command: >
+      bash -c "cp -R /usr/local/tomcat/webapps.dist/* /usr/local/tomcat/webapps/ &&
+               catalina.sh run"
+    networks:
+      - ci-cd-network
+
+volumes:
+  jenkins_home:
+
+networks:
+  ci-cd-network:
+    driver: bridge
