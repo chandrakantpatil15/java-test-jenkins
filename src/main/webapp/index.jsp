@@ -395,15 +395,51 @@
         const chatMessages = document.getElementById('chatMessages');
         const messageInput = document.getElementById('messageInput');
         
-        // System-aware AI responses with current values
-        const systemResponses = {
-            'cpu': `Current CPU usage is <%= String.format("%.1f", cpuUsage) %>%. <%= cpuUsage > 80 ? "⚠️ High CPU usage detected! Consider closing unnecessary applications." : cpuUsage > 60 ? "⚡ Moderate CPU usage. System is working well." : "✅ CPU usage is optimal!" %>`,
-            'memory': `Memory usage is <%= String.format("%.1f", memoryUsage) %>%. <%= memoryUsage > 85 ? "🔴 High memory usage! Consider restarting some applications." : memoryUsage > 70 ? "🟡 Moderate memory usage." : "🟢 Memory usage is healthy!" %>`,
-            'disk': `Disk usage is <%= String.format("%.1f", diskUsage) %>%. <%= diskUsage > 90 ? "🔴 Critical! Disk almost full. Clean up files immediately." : diskUsage > 75 ? "🟡 Warning: Disk getting full. Consider cleanup." : "🟢 Disk usage is healthy!" %>\nUsed: <%= String.format("%.1f", usedDiskSpace / (1024.0 * 1024.0 * 1024.0)) %> GB / <%= String.format("%.1f", totalDiskSpace / (1024.0 * 1024.0 * 1024.0)) %> GB`,
-            'performance': `System Performance Report:\n• CPU: <%= String.format("%.1f", cpuUsage) %>% (<%= availableProcessors %> cores)\n• Memory: <%= String.format("%.1f", memoryUsage) %>%\n• Disk: <%= String.format("%.1f", diskUsage) %>%\n• Status: <%= (cpuUsage < 60 && memoryUsage < 70 && diskUsage < 75) ? "🟢 Excellent" : (cpuUsage < 80 && memoryUsage < 85 && diskUsage < 90) ? "🟡 Good" : "🔴 Needs Attention" %>`,
-            'storage': `Disk usage is <%= String.format("%.1f", diskUsage) %>%. <%= diskUsage > 90 ? "🔴 Critical! Disk almost full. Clean up files immediately." : diskUsage > 75 ? "🟡 Warning: Disk getting full. Consider cleanup." : "🟢 Disk usage is healthy!" %>\nUsed: <%= String.format("%.1f", usedDiskSpace / (1024.0 * 1024.0 * 1024.0)) %> GB / <%= String.format("%.1f", totalDiskSpace / (1024.0 * 1024.0 * 1024.0)) %> GB`,
-            'help': `I can help you with:\n• 📊 System monitoring (CPU, Memory, Disk)\n• 💻 Performance optimization\n• 🔧 Troubleshooting issues\n• 📈 Understanding metrics\n• 🤖 General AI assistance\n\nTry asking: "cpu", "memory", "disk", or "performance"`
+        // Get system data from server
+        const systemData = {
+            cpu: <%= String.format("%.1f", cpuUsage) %>,
+            memory: <%= String.format("%.1f", memoryUsage) %>,
+            disk: <%= String.format("%.1f", diskUsage) %>,
+            cores: <%= availableProcessors %>,
+            usedDiskGB: <%= String.format("%.1f", usedDiskSpace / (1024.0 * 1024.0 * 1024.0)) %>,
+            totalDiskGB: <%= String.format("%.1f", totalDiskSpace / (1024.0 * 1024.0 * 1024.0)) %>
         };
+        
+        // Dynamic AI responses using live data
+        function getSystemResponse(type) {
+            switch(type) {
+                case 'cpu':
+                    const cpuStatus = systemData.cpu > 80 ? '⚠️ High CPU usage detected! Consider closing unnecessary applications.' : 
+                                     systemData.cpu > 60 ? '⚡ Moderate CPU usage. System is working well.' : 
+                                     '✅ CPU usage is optimal!';
+                    return `Current CPU usage is ${systemData.cpu}%. ${cpuStatus}`;
+                    
+                case 'memory':
+                    const memStatus = systemData.memory > 85 ? '🔴 High memory usage! Consider restarting some applications.' : 
+                                     systemData.memory > 70 ? '🟡 Moderate memory usage.' : 
+                                     '🟢 Memory usage is healthy!';
+                    return `Memory usage is ${systemData.memory}%. ${memStatus}`;
+                    
+                case 'disk':
+                case 'storage':
+                    const diskStatus = systemData.disk > 90 ? '🔴 Critical! Disk almost full. Clean up files immediately.' : 
+                                      systemData.disk > 75 ? '🟡 Warning: Disk getting full. Consider cleanup.' : 
+                                      '🟢 Disk usage is healthy!';
+                    return `Disk usage is ${systemData.disk}%. ${diskStatus}\nUsed: ${systemData.usedDiskGB} GB / ${systemData.totalDiskGB} GB`;
+                    
+                case 'performance':
+                    const overallStatus = (systemData.cpu < 60 && systemData.memory < 70 && systemData.disk < 75) ? '🟢 Excellent' : 
+                                         (systemData.cpu < 80 && systemData.memory < 85 && systemData.disk < 90) ? '🟡 Good' : 
+                                         '🔴 Needs Attention';
+                    return `System Performance Report:\n• CPU: ${systemData.cpu}% (${systemData.cores} cores)\n• Memory: ${systemData.memory}%\n• Disk: ${systemData.disk}%\n• Status: ${overallStatus}`;
+                    
+                case 'help':
+                    return `I can help you with:\n• 📊 System monitoring (CPU, Memory, Disk)\n• 💻 Performance optimization\n• 🔧 Troubleshooting issues\n• 📈 Understanding metrics\n• 🤖 General AI assistance\n\nTry asking: "cpu", "memory", "disk", or "performance"`;
+                    
+                default:
+                    return null;
+            }
+        }
         
         function sendMessage() {
             const message = messageInput.value.trim();
@@ -445,12 +481,29 @@
         function getSystemAwareResponse(message) {
             const lowerMessage = message.toLowerCase();
             
-            for (const key in systemResponses) {
-                if (lowerMessage.includes(key)) {
-                    return systemResponses[key];
-                }
+            // Check for system keywords
+            if (lowerMessage.includes('cpu')) {
+                return getSystemResponse('cpu');
+            }
+            if (lowerMessage.includes('memory') || lowerMessage.includes('ram')) {
+                return getSystemResponse('memory');
+            }
+            if (lowerMessage.includes('disk') || lowerMessage.includes('storage') || lowerMessage.includes('space')) {
+                return getSystemResponse('disk');
+            }
+            if (lowerMessage.includes('performance') || lowerMessage.includes('status') || lowerMessage.includes('report')) {
+                return getSystemResponse('performance');
+            }
+            if (lowerMessage.includes('help') || lowerMessage.includes('what can you')) {
+                return getSystemResponse('help');
             }
             
+            // Greetings
+            if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
+                return `Hello! I'm monitoring your system in real-time. Current status: CPU ${systemData.cpu}%, Memory ${systemData.memory}%, Disk ${systemData.disk}%. How can I help?`;
+            }
+            
+            // Default responses
             const defaultResponses = [
                 "I'm here to help! Try asking about 'cpu', 'memory', 'disk', or 'performance' to get system insights.",
                 "That's interesting! I can provide real-time monitoring. Ask about CPU, memory, or disk usage!",
